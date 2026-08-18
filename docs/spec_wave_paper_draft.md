@@ -1,8 +1,8 @@
 # SpecWave: Non-Autoregressive Language Synthesis via Multi-Scale 2D Spectral Wavelet Vocoding
 
-**Manuel Carbonell**  
+**Mario Raúl Carbonell Martínez**  
 *Independent AI Research*  
-`mrcm-org / spec-wave`  
+[https://github.com/mcarbonell/spec-wave](https://github.com/mcarbonell/spec-wave)  
 August 2026
 
 ---
