@@ -107,7 +107,7 @@ spec-wave/
 SpecWave is being validated across four rigorous empirical phases ([`docs/empirical_validation_roadmap.md`](docs/empirical_validation_roadmap.md)):
 1. **Phase 1: Vocoder Invertibility on Real Text:** Lossless 2D wavelet reconstruction on `WikiText-2` & Python Code (**100.00% exact match / PPL 1.0009**) — 📄 **[Read Phase 1 Report](docs/findings_phase1_vocoder_invertibility.md)**.
 2. **Phase 2: TinyStories Pre-Training:** Head-to-head pre-training benchmark against causal GPT-2 (**50.29x faster generation / 100.00% exact recovery**) — 📄 **[Read Phase 2 Report](docs/findings_phase2_tinystories_pretraining.md)**.
-3. **Phase 3: Hardware Latency & Multi-User Scaling:** Proving $250\times$ faster single-shot paragraph generation ($<5\text{ ms}$) on GPU hardware.
+3. **Phase 3: Hardware Latency & Multi-User Scaling:** Proving **155.56x faster generation** at $N=256$ & **13,589.7 tokens/sec** peak throughput — 📄 **[Read Phase 3 Report](docs/findings_phase3_latency_and_throughput.md)**.
 4. **Phase 4: Mechanistic Safety Auditing:** Real-time deception detection via direct LL subband monitoring.
 
 ---
