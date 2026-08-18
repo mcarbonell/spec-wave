@@ -112,5 +112,15 @@ SpecWave is being validated across four rigorous empirical phases ([`docs/empiri
 
 ---
 
+## 📄 Scientific Paper Preprint
+
+The full formal preprint manuscript is available in the repository:
+👉 **[Read Official Paper Draft (`docs/spec_wave_paper_draft.md`)](docs/spec_wave_paper_draft.md)**
+
+*Title:* **SpecWave: Non-Autoregressive Language Synthesis via Multi-Scale 2D Spectral Wavelet Vocoding**  
+*Author:* **Manuel Carbonell** (August 2026)
+
+---
+
 ## 📜 License
 Distributed under the **MIT License**. See `LICENSE` for more information.
