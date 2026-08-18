@@ -108,7 +108,7 @@ SpecWave is being validated across four rigorous empirical phases ([`docs/empiri
 1. **Phase 1: Vocoder Invertibility on Real Text:** Lossless 2D wavelet reconstruction on `WikiText-2` & Python Code (**100.00% exact match / PPL 1.0009**) — 📄 **[Read Phase 1 Report](docs/findings_phase1_vocoder_invertibility.md)**.
 2. **Phase 2: TinyStories Pre-Training:** Head-to-head pre-training benchmark against causal GPT-2 (**50.29x faster generation / 100.00% exact recovery**) — 📄 **[Read Phase 2 Report](docs/findings_phase2_tinystories_pretraining.md)**.
 3. **Phase 3: Hardware Latency & Multi-User Scaling:** Proving **155.56x faster generation** at $N=256$ & **13,589.7 tokens/sec** peak throughput — 📄 **[Read Phase 3 Report](docs/findings_phase3_latency_and_throughput.md)**.
-4. **Phase 4: Mechanistic Safety Auditing:** Real-time deception detection via direct LL subband monitoring.
+4. **Phase 4: OpenAI GPT-2 (124M) Retrofitting:** Adapting frozen GPT-2 to single-shot spectral wave generation in 2 minutes (**100.00% match / 12.27x to 80x speedup**) — 📄 **[Read GPT-2 Retrofitting Report](docs/findings_gpt2_specwave_retrofitting.md)**.
 
 ---
 
@@ -118,7 +118,7 @@ The full formal preprint manuscript is available in the repository:
 👉 **[Read Official Paper Draft (`docs/spec_wave_paper_draft.md`)](docs/spec_wave_paper_draft.md)**
 
 *Title:* **SpecWave: Non-Autoregressive Language Synthesis via Multi-Scale 2D Spectral Wavelet Vocoding**  
-*Author:* **Manuel Carbonell** (August 2026)
+*Author:* **Mario Raúl Carbonell Martínez** (August 2026)
 
 ---
 
