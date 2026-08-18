@@ -102,5 +102,15 @@ spec-wave/
 
 ---
 
+## 🗺️ Empirical Validation Roadmap
+
+SpecWave is being validated across four rigorous empirical phases ([`docs/empirical_validation_roadmap.md`](docs/empirical_validation_roadmap.md)):
+1. **Phase 1: Vocoder Invertibility on Real Text:** Lossless 2D wavelet reconstruction on `FineWeb-Edu` & Python Code ($\ge 99.5\%$ exact match).
+2. **Phase 2: TinyStories Pre-Training:** Head-to-head grammatical coherence and perplexity benchmark against causal GPT baselines.
+3. **Phase 3: Hardware Latency & Multi-User Scaling:** Proving $250\times$ faster single-shot paragraph generation ($<5\text{ ms}$) on GPU hardware.
+4. **Phase 4: Mechanistic Safety Auditing:** Real-time deception detection via direct LL subband monitoring.
+
+---
+
 ## 📜 License
 Distributed under the **MIT License**. See `LICENSE` for more information.
