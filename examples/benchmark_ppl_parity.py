@@ -184,11 +184,25 @@ def run_ppl_parity_benchmark(num_steps=100, batch_size=4):
     gpt2_backbone = gpt2_full.transformer
     
     print("Loading WikiText-2 dataset splits...")
-    raw_train = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
-    raw_test = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+    try:
+        raw_train = load_dataset("EleutherAI/wikitext_document_level", "wikitext-2-raw-v1", split="train")
+        raw_test = load_dataset("EleutherAI/wikitext_document_level", "wikitext-2-raw-v1", split="test")
+    except Exception:
+        try:
+            raw_train = load_dataset("wikitext", "wikitext-2-raw-v1", split="train", trust_remote_code=True)
+            raw_test = load_dataset("wikitext", "wikitext-2-raw-v1", split="test", trust_remote_code=True)
+        except Exception:
+            import urllib.request
+            print("Direct downloading WikiText-2 raw files...")
+            url_train = "https://raw.githubusercontent.com/pytorch/examples/master/word_language_model/data/wikitext-2/train.txt"
+            url_test = "https://raw.githubusercontent.com/pytorch/examples/master/word_language_model/data/wikitext-2/test.txt"
+            train_text = urllib.request.urlopen(url_train).read().decode('utf-8')
+            test_text = urllib.request.urlopen(url_test).read().decode('utf-8')
+            raw_train = [{"text": train_text}]
+            raw_test = [{"text": test_text}]
     
-    train_ds = WikiTextPairDataset(raw_train, tokenizer, max_samples=300, seq_len=64)
-    test_ds = WikiTextPairDataset(raw_test, tokenizer, max_samples=60, seq_len=64)
+    train_ds = WikiTextPairDataset(raw_train, tokenizer, max_samples=600, seq_len=64)
+    test_ds = WikiTextPairDataset(raw_test, tokenizer, max_samples=100, seq_len=64)
     
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
