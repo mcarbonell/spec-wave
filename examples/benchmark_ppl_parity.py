@@ -112,9 +112,17 @@ class SpecWavePPLParityAdapter(nn.Module):
         self.out_seq_len = out_seq_len
         self.d_model = d_model
         
-        # Freeze GPT-2 backbone completely
+        # Freeze layers 0 to 10 of GPT-2 backbone, UNFREEZE last layer (Layer 11) + final LayerNorm
         for param in self.gpt2.parameters():
             param.requires_grad = False
+            
+        # Unfreeze last Transformer block for spectral co-adaptation
+        if hasattr(self.gpt2, 'h'):
+            for param in self.gpt2.h[-1].parameters():
+                param.requires_grad = True
+        if hasattr(self.gpt2, 'ln_f'):
+            for param in self.gpt2.ln_f.parameters():
+                param.requires_grad = True
             
         half_in_seq = in_seq_len // 2
         half_in_dim = d_model // 2
@@ -143,7 +151,6 @@ class SpecWavePPLParityAdapter(nn.Module):
         vocab_size = pre_trained_head_weight.shape[0]
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
         self.lm_head.weight.data.copy_(pre_trained_head_weight.data)
-        # We allow fine-tuning the head or keep it tied
         self.lm_head.weight.requires_grad = True
 
     def forward(self, prompt_input_ids: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -151,9 +158,9 @@ class SpecWavePPLParityAdapter(nn.Module):
         half_out_seq = self.out_seq_len // 2
         half_out_dim = self.d_model // 2
         
-        with torch.no_grad():
-            gpt_outputs = self.gpt2(input_ids=prompt_input_ids)
-            h_seq = gpt_outputs.last_hidden_state # [B, 64, 768]
+        # Forward through GPT-2 (Backpropagation allowed through the un-frozen final layer)
+        gpt_outputs = self.gpt2(input_ids=prompt_input_ids)
+        h_seq = gpt_outputs.last_hidden_state # [B, 64, 768]
             
         # 1. 2D DWT Decomposition of Prompt Hidden States
         p_ll, p_lh, p_hl, p_hh = haar_dwt_2d(h_seq)
