@@ -48,15 +48,30 @@ def set_seed(seed=42):
 # =====================================================================
 
 class WikiTextPairDataset(Dataset):
-    def __init__(self, raw_dataset, tokenizer, max_samples=400, seq_len=64):
+    def __init__(self, raw_dataset, tokenizer, max_samples=600, seq_len=64):
         self.samples = []
         token_buffer = []
         
-        for item in raw_dataset:
-            text = item.get("text", "").strip()
-            if len(text) < 40:
+        # Extract text strings robustly regardless of schema
+        text_list = []
+        if isinstance(raw_dataset, str):
+            text_list = [raw_dataset]
+        elif hasattr(raw_dataset, '__iter__'):
+            for item in raw_dataset:
+                if isinstance(item, str):
+                    text_list.append(item)
+                elif isinstance(item, dict):
+                    # Check common keys: 'text', 'page', 'content'
+                    txt = item.get("text") or item.get("page") or item.get("content") or ""
+                    if txt:
+                        text_list.append(txt)
+                        
+        print(f"Processing {len(text_list)} text documents into {seq_len}-token pairs...")
+        for text in text_list:
+            clean_txt = text.strip()
+            if len(clean_txt) < 30:
                 continue
-            tokens = tokenizer.encode(text)
+            tokens = tokenizer.encode(clean_txt)
             token_buffer.extend(tokens)
             
             block_size = seq_len * 2
@@ -70,6 +85,8 @@ class WikiTextPairDataset(Dataset):
                     break
             if len(self.samples) >= max_samples:
                 break
+                
+        print(f"Successfully packed {len(self.samples)} valid sequence pairs.")
 
     def __len__(self):
         return len(self.samples)
