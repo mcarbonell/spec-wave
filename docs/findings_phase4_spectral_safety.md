@@ -1,83 +1,91 @@
-# 🛡️ Empirical Report: Phase 4 — Real-Time Mechanistic Safety & Intent Auditing via LL Wavelet Monitoring
+# 🛡️ Empirical Report: Phase 4 — Clasificador sobre Ruido Gaussiano Sintético (No Safety Real)
 
-> **STATUS: [CERTIFIED / 100.00% ATTACK INTERCEPTION / 0.0937 ms TOTAL LATENCY]**  
-> Empirical validation of zero-latency mechanistic safety intercepting deceptive and harmful intents directly from continuous 2D Wavelet $\mathbf{LL}$ subbands before token generation.  
-> **Reproducible Benchmark Script:** [`tests/benchmark_spectral_safety.py`](../tests/benchmark_spectral_safety.py)
+> **STATUS: [VALIDADO COMO DEMO / 100% SOBRE DATOS SINTÉTICOS TRIVIALMENTE SEPARABLES]**  
+> Validación de un clasificador ligero ("tripwire") que distingue dos nubes de ruido gaussiano sintético con medias opuestas, descompuestas en subbandas wavelet 2D. **No involucra texto, jailbreaks, ni intenciones reales.**  
+> **Script reproducible:** [`tests/benchmark_spectral_safety.py`](../tests/benchmark_spectral_safety.py)
 
 ---
 
-## 🎯 1. Executive Summary & Key Safety Breakthroughs
+## 🎯 1. Resumen Ejecutivo y Resultados Medidos
 
-Traditional LLM safety relies on post-hoc text guardrails: the model generates dangerous tokens sequentially, and a secondary classifier reads the text after the fact (adding hundreds of milliseconds of lag).
-
-**SpecWave introduces Pre-Synthesis Waveform Interception:**
-Because high-level macro-semantics concentrate **$>93.5\%$ of the total spectral energy in the $\mathbf{LL}$ (Low-Low) subband**, malicious intent or deception is physically isolated in frequency space and can be audited in **under $0.1\text{ milliseconds}$**.
-
-| Metric | Traditional Guardrail (Llama-Guard / Moderation API) | SpecWave LL-Tripwire Safety | Advantage |
-| :--- | :---: | :---: | :---: |
-| **Interception Point** | Surface Text Tokens (Post-Generation) | **Continuous Spectral Wave ($\mathbf{LL}$ Subband)** | **Pre-Synthesis Abort** 🛡️ |
-| **Total Safety Latency** | $250.00\text{ ms} \text{ – } 600.00\text{ ms}$ | **$0.0937\text{ ms}$ ($\approx 94\text{ microseconds}$)** | **$>3,000\times$ FASTER** ⚡ |
-| **Spectral Energy Audited**| Full Sequence | **$\mathbf{LL}$ Subband ($93.51\%$ energy)** | $4\times$ Dimensionality Reduction |
-| **Attack Detection Rate**| $\approx 88\%\text{ – }95\%$ | **$100.00\%$ (50/50 Blind Test Attacks)** | **$100.00\%$ Precision** |
-| **False Positive Rate** | $\approx 3\%\text{ – }5\%$ (Over-refusal) | **$0.00\%$ (50/50 Benign Requests Passed)** | Zero Benign Interruption |
+| Métrica | Resultado Reportado | Qué significa realmente |
+| :--- | :---: | :--- |
+| **Detección de ataques** | **$100.00\%$ (50/50)** | Clasificación de ruido gaussiano con media -1.2 vs +1.2 |
+| **Falsos positivos** | **$0.00\%$ (50/50)** | Idem |
+| **Latencia total de auditoría** | **$0.0937\text{ ms}$** | Coste de un DWT + MLP de 2 capas sobre tensores sintéticos |
+| **Energía en subbanda LL** | **$93.51\%$** | Propiedad matemática del ruido gaussiano generado, no del "intento" |
 
 ```
-                TOTAL SAFETY AUDITING LATENCY (PER REQUEST)
+                LATENCIA TOTAL DE AUDITORÍA (POR REQUEST)
  ┌────────────────────────────────────────────────────────────────────────┐
- │ Traditional Guardrail: 400.00 ms   ███████████████████████████ (100.0%)│
- │ SpecWave LL-Tripwire:    0.09 ms   ▍ (0.02% - >3,000x FASTER) 🛡️⚡      │
+ │ Guardrail tradicional: 400.00 ms   ███████████████████████████ (100.0%)│
+ │ SpecWave LL-Tripwire:    0.09 ms   ▍ (0.02% - >3,000x FASTER)          │
  └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔬 2. Spectral Energy Distribution Across 2D Wavelet Subbands
+## 🔬 2. Protocolo Experimental Real
 
-Decomposing continuous thought manifolds $\mathbf{E} \in \mathbb{R}^{64 \times 768}$ via 2D Haar DWT reveals the physical segregation of intent:
+### 2.1 Generación de Datos (IMPORTANTE: 100% sintético, sin texto)
 
+El script **no usa texto, ni jailbreaks, ni prompts reales**. Genera dos nubes de ruido gaussiano con medias opuestas (`tests/benchmark_spectral_safety.py`, líneas 99–116):
+
+```python
+# 1. Synthesize Benign Thought Manifolds [N, 64, 768]
+benign_embs = torch.randn(num_train_samples // 2, seq_len, d_model, device=device) * 0.5 + 1.2
+benign_embs = benign_embs + torch.sin(t) * 1.5
+
+# 2. Synthesize Malicious / Jailbreak Thought Manifolds [N, 64, 768]
+malicious_embs = torch.randn(num_train_samples // 2, seq_len, d_model, device=device) * 0.5 - 1.2
+malicious_embs = malicious_embs + torch.cos(2 * t) * 1.8
 ```
- ┌─────────────────────────────┬───────────────────────────┬──────────────────────────────────────────┐
- │ SUBBAND                     │ SPECTRAL ENERGY SHARE (%) │ MECHANISTIC INTERPRETATION               │
- ├─────────────────────────────┼───────────────────────────┼──────────────────────────────────────────┤
- │ • LL (Low-Low Frequency)    │ 93.51% 🌟                 │ Core Global Intent / Macroscopic Thesis │
- │ • LH (Horizontal Details)   │  2.06%                    │ Sentence Transitions & Syntax Grammar    │
- │ • HL (Vertical Cadence)     │  2.37%                    │ Latent Channel Harmonics                │
- │ • HH (High-High Frequency)  │  2.06%                    │ Local Orthographic & Lexical Details     │
- └─────────────────────────────┴───────────────────────────┴──────────────────────────────────────────┘
+
+- **Clase 0 ("benigno"):** ruido gaussiano con media **+1.2** + seno.
+- **Clase 1 ("malicioso"):** ruido gaussiano con media **-1.2** + coseno.
+
+Estas dos nubes son **trivialmente separables**: basta con mirar la media de los valores. Un clasificador lineal llega a 100% en pocos pasos. No hay relación con "intención", "decepción" o "jailbreak".
+
+### 2.2 Arquitectura del Auditor
+
+```python
+class SpectralIntentAuditor(nn.Module):
+    def __init__(self, half_seq=32, half_dim=384, num_intent_classes=2):
+        self.tripwire = nn.Sequential(
+            nn.Linear(ll_dim, 128),   # ll_dim = 32*384 = 12,288
+            nn.GELU(),
+            nn.Linear(128, 2)
+        )
 ```
 
-* **The Safety Firewall:** By inspecting only the $\mathbf{LL}$ subband ($1/4$ the dimensionality of the full thought tensor), the auditor has full visibility of the model's global objective without wasting FLOPs reconstructing intermediate words.
+Un MLP de 2 capas que clasifica el LL subband aplanado. Se entrena 50 pasos con AdamW lr=3e-3.
+
+### 2.3 Evaluación
+
+- 400 muestras de entrenamiento (200 por clase).
+- 100 muestras de test "no vistas" (50 por clase), generadas con la **misma distribución** (misma media, mismo ruido).
+- Resultado esperado y obtenido: 100% de precisión, porque las clases son linealmente separables por construcción.
 
 ---
 
-## ⚡ 3. Empirical Interception Latency Breakdown
+## ⚡ 3. Desglose de Latencia Medida
 
-Measured on a standard CPU testbed across 100 blind test thought waves:
+Medido en CPU sobre 100 tensores sintéticos:
 
-1. **2D DWT Decomposition Step:** $0.0546\text{ ms}$ per sample.
-2. **LL Subband Tripwire Linear Inference:** $0.0391\text{ ms}$ per sample.
-3. **Total Latency to Safety Decision:** **$0.0937\text{ ms}$ ($< 0.1\text{ ms}$)**.
+1. **2D DWT Decomposition Step:** $0.0546\text{ ms}$ por muestra.
+2. **LL Subband Tripwire Linear Inference:** $0.0391\text{ ms}$ por muestra.
+3. **Total Latency:** **$0.0937\text{ ms}$**.
 
-```
- [Prompt Wave-In] ──► [Model Core] ──► [2D Wavelet Thought (Ψ)]
-                                                │
-                                                ▼ (0.05 ms DWT)
-                                        [Audit LL Subband]
-                                                │
-                         ┌──────────────────────┴──────────────────────┐
-                         ▼                                             ▼
-                 [SAFE (Prob >= 0.99)]                       [MALICIOUS (Prob >= 0.99)]
-                         │                                             │
-                         ▼ (0.04 ms IDWT)                              ▼
-              [Emit Safe Response]                          [TRIPWIRE FIRES: ABORT]
-                                                            (Zero tokens ever synthesized)
-```
+Esta latencia es real, pero mide el coste de cómputo de un DWT + MLP pequeño sobre tensores de 64×768. No mide "intercepción de intenciones maliciosas".
 
 ---
 
-## 💡 4. Scientific Significance for AI Safety & Alignment
+## 💡 4. Interpretación Honesta de los Resultados
 
-1. **Immunity to Jailbreak Word Games:**
-   Adversarial prompts that hide malicious instructions inside base64, ciphers, or roleplay personas still produce distinct macroscopic shifts in the $\mathbf{LL}$ energy manifold, tripping the spectral wire before words are emitted.
-2. **Zero Overhead Deployment:**
-   At $94\text{ microseconds}$ per call, SpecWave's safety auditor can run synchronously on every single query in large-scale enterprise clusters without adding measurable latency to user interactions.
+1. **El 100% de detección es trivial:** Las dos clases se generan con medias opuestas (+1.2 vs -1.2). Cualquier clasificador (incluso uno que mire solo la media) las separa perfectamente. Esto **no** demuestra capacidad de detectar jailbreaks, engaños o contenido dañino.
+
+2. **La energía del 93.51% en LL es una propiedad del ruido generado:** La distribución de energía entre subbandas de Haar depende de la estructura de los datos de entrada. Con ruido gaussiano + seno/coseno, la mayor parte de la energía cae en LL por construcción. No hay evidencia de que esto se cumpla con embeddings de texto reales.
+
+3. **No hay comparación con guardrails reales:** La tabla compara contra "Llama-Guard / Moderation API" con latencias de 250-600 ms, pero **ninguno de esos sistemas se ejecuta ni se mide**. Son cifras de referencia no verificadas.
+
+4. **Conclusión:** La fase 4 es una demo de que un MLP pequeño puede clasificar dos nubes de ruido separables y que un DWT es rápido. Para que fuera un resultado de safety real haría falta: (a) texto real con jailbreaks reales (p. ej., prompts adversariales conocidos), (b) embeddings de un LLM real, (c) comparación medida contra un guardrail real, y (d) métricas de precisión/recall/F1 sobre datos no triviales.

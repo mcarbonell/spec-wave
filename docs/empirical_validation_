@@ -1,0 +1,118 @@
+# 🗺️ SpecWave: Roadmap de Validación Empírica (Estado Real)
+
+## 🎯 Resumen Ejecutivo
+
+Este documento describe los experimentos necesarios para validar SpecWave como enfoque de generación de lenguaje no-autorregresiva, junto con el **estado real** de cada fase en el repositorio.
+
+> ⚠️ **Nota importante:** Los scripts actuales del repo **no cumplen** los requisitos de este roadmap. Las fases marcadas como "completadas" en versiones anteriores del README eran en realidad experimentos con corpus sintéticos/hardcodeados y baselines extrapolados. Este documento refleja el estado real.
+
+```
+ ┌───────────────────────────┐       ┌───────────────────────────┐       ┌───────────────────────────┐
+ │   PHASE 1: AUTOENCODING   │  ───► │  PHASE 2: REAL LANGUAGE   │  ───► │ PHASE 3: SPEED & SCALING  │
+ │ Vocoding en corpus real   │       │ WikiText/TinyStories LLM  │       │ Benchmarks GPU reales     │
+ └───────────────────────────┘       └───────────────────────────┘       └───────────────────────────┘
+```
+
+---
+
+## 🧪 Phase 1: Capacidad de Reconstrucción del Vocoder
+
+**Objetivo:** Probar que la representación wavelet 2D puede reconstruir lenguaje natural y código fuente sin perder sintaxis.
+
+### Estado real: ❌ INCOMPLETO
+
+**Lo que se hizo** (`tests/benchmark_vocoder_fineweb.py`):
+- Corpus: **2 strings literales hardcodeados** (~200 tokens de texto + ~100 tokens de código Python).
+- ~12 bloques de 64 tokens con solapamiento (50%) y duplicados.
+- **Sin split train/test.**
+- Resultado: 100% exact match / PPL 1.0009 (memorización).
+
+**Lo que falta:**
+- [ ] Descargar FineWeb-Edu o WikiText-2 real (100k+ bloques).
+- [ ] Split train/test estricto.
+- [ ] Reportar PPL de validación (no solo exact match de train).
+- [ ] Comparar bases wavelet (Haar vs Db4 vs DCT-II).
+
+---
+
+## 🔬 Phase 2: Pre-Training de Lenguaje End-to-End
+
+**Objetivo:** Entrenar un modelo completo donde prompts y respuestas se procesan en el dominio espectral.
+
+### Estado real: ❌ INCOMPLETO
+
+**Lo que se hizo** (`examples/train_tinystories_specwave.py`):
+- Corpus: **8 plantillas de historias sintéticas hardcodeadas** (NO TinyStories real).
+- Validation split = **clon del train**.
+- Baseline: mini-transformer propio de 4 capas/d=128 **sin KV-cache**.
+- Resultado: 100% exact match (memorización de 8 plantillas), speedup 50.29x sobre baseline desventajado.
+
+**Lo que falta:**
+- [ ] Descargar TinyStories real (2.1M historias).
+- [ ] Split train/test estricto.
+- [ ] Baseline con KV-cache (GPT-2 real o similar).
+- [ ] Métricas de generalización: PPL de test, coherencia evaluada por humanos/GPT-4.
+- [ ] Ablación: SpecWave vs SpecWave sin wavelets (MLP plano).
+
+---
+
+## ⚡ Phase 3: Latencia, Throughput y Escalado
+
+**Objetivo:** Medir latencia real en GPUs (RTX, T4, A100) y throughput de serving.
+
+### Estado real: ⚠️ PARCIALMENTE COMPLETADO
+
+**Lo que se hizo** (`tests/benchmark_gpu_wallclock.py`):
+- Latencia del vocoder SpecWave **medida** (7-28 ms para N=32-256) sobre entrada aleatoria.
+- Baseline **medido** solo para N≤64 (mini-transformer sin KV-cache).
+- Baseline **extrapolado** para N≥128 con fórmula `n * 13.0 + n² * 0.015` (constante arbitraria).
+- Throughput medido sobre **ruido aleatorio** con vocoder sin entrenar.
+
+**Lo que falta:**
+- [ ] Medir GPT-2 real con KV-cache en el mismo hardware.
+- [ ] Ejecutar en GPU (el script actual usa CPU si no hay CUDA).
+- [ ] Generar texto real, no ruido.
+- [ ] Benchmarks Triton/CUDA para kernels optimizados.
+- [ ] Simular 1,000 usuarios concurrentes.
+
+---
+
+## 🛡️ Phase 4: Safety e Interpretabilidad
+
+**Objetivo:** Validar detección de intenciones maliciosas vía subbandas wavelet.
+
+### Estado real: ❌ INCOMPLETO
+
+**Lo que se hizo** (`tests/benchmark_spectral_safety.py`):
+- Datos: **ruido gaussiano sintético** con medias opuestas (+1.2 benigno vs -1.2 malicioso).
+- Clases trivialmente separables (un clasificador lineal llega a 100%).
+- **No hay texto, ni jailbreaks, ni intenciones reales.**
+- Latencia 0.0937 ms medida (DWT + MLP pequeño).
+
+**Lo que falta:**
+- [ ] Jailbreaks reales (prompts adversariales conocidos).
+- [ ] Embeddings de un LLM real.
+- [ ] Comparación medida contra un guardrail real (Llama-Guard, etc.).
+- [ ] Métricas de precisión/recall/F1 sobre datos no triviales.
+
+---
+
+## 📅 Estado del Roadmap por Fase
+
+| Fase | Objetivo | Estado real | Script | Resultado real |
+| :--- | :--- | :--- | :--- | :--- |
+| **P1** | Vocoder en FineWeb (100k muestras) | ❌ Incompleto | `tests/benchmark_vocoder_fineweb.py` | Memorización de ~12 bloques hardcodeados |
+| **P2** | TinyStories real (2.1M historias) | ❌ Incompleto | `examples/train_tinystories_specwave.py` | Memorización de 8 plantillas sintéticas |
+| **P3** | Benchmarks GPU (Triton/CUDA, 250x) | ⚠️ Parcial | `tests/benchmark_gpu_wallclock.py` | Latencia medida; speedups extrapolados |
+| **P4** | Safety con jailbreaks reales | ❌ Incompleto | `tests/benchmark_spectral_safety.py` | Clasificación de ruido gaussiano trivial |
+| **P4C** | WikiText-2 real, generalización | ⚠️ Parcial | `examples/benchmark_ppl_parity.py` | Train PPL 1.02, **val PPL ~4,500 (no generaliza)** |
+
+---
+
+## 🎯 Próximos Pasos Prioritarios
+
+1. **Rehacer Phase 1 con datos reales:** Descargar WikiText-2 vía HuggingFace (el patrón ya existe en `benchmark_ppl_parity.py`), split estricto, reportar val PPL.
+2. **Rehacer Phase 2 con TinyStories real:** Mismo patrón, con baseline GPT-2 real con KV-cache.
+3. **Medir el baseline real:** GPT-2 con KV-cache en el mismo hardware, nunca constantes.
+4. **Añadir ablación:** SpecWave sin wavelets (MLP plano) para saber si las wavelets aportan algo.
+5. **Reportar generalización:** PPL de validación como métrica principal, no exact match de train.
