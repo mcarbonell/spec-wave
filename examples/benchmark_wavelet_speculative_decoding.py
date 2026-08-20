@@ -149,7 +149,7 @@ def speculative_sample_step(target_model, drafter, context_ids, burst_len=8, tem
 # Full Benchmark: Autoregressive Baseline vs Wavelet Speculative
 # =====================================================================
 
-def run_speculative_benchmark(num_prompts=30, gen_length=64, burst_len=8, temperature=0.7):
+def run_speculative_benchmark(num_prompts=30, gen_length=64, burst_len=8, temperature=0.7, checkpoint_path="checkpoints/specwave_tinystories_burst.pt"):
     device = get_device()
     if hasattr(torch, 'set_num_threads'):
         torch.set_num_threads(min(16, os.cpu_count() or 8))
@@ -170,6 +170,17 @@ def run_speculative_benchmark(num_prompts=30, gen_length=64, burst_len=8, temper
     
     print(f"Initializing Wavelet Speculative Drafter (K={burst_len})...", flush=True)
     drafter = WaveletSpeculativeDrafter(gpt2_backbone, pre_trained_head_weights, burst_len=burst_len).to(device)
+    
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        print(f"Loading trained weights from {checkpoint_path}...", flush=True)
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        model_dict = drafter.state_dict()
+        # Filter and load matching weights
+        pretrained_dict = {k: v for k, v in ckpt['model_state_dict'].items() if k in model_dict and v.shape == model_dict[k].shape}
+        model_dict.update(pretrained_dict)
+        drafter.load_state_dict(model_dict)
+        print(f"Successfully loaded {len(pretrained_dict)} weight tensors into Drafter!")
+        
     drafter.eval()
     
     print("Loading TinyStories test prompts...", flush=True)
@@ -283,11 +294,13 @@ if __name__ == "__main__":
     parser.add_argument("--gen_length", type=int, default=64)
     parser.add_argument("--burst_len", type=int, default=8)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--checkpoint_path", type=str, default="checkpoints/specwave_tinystories_burst.pt")
     args = parser.parse_args()
     
     run_speculative_benchmark(
         num_prompts=args.num_prompts,
         gen_length=args.gen_length,
         burst_len=args.burst_len,
-        temperature=args.temperature
+        temperature=args.temperature,
+        checkpoint_path=args.checkpoint_path
     )
