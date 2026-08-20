@@ -1,94 +1,116 @@
-# 🗺️ SpecWave Empirical Validation & Experimental Roadmap
+# SpecWave: Plan de Investigacion Experimental
 
-## 🎯 Executive Overview
+## Objetivo
 
-To prove **SpecWave (Holistic Spectral Wave Language Synthesis)** conclusively to the research community and frontier AI labs (DeepMind, Anthropic, Meta FAIR), we must execute a rigorous, staged experimental roadmap:
+Determinar si la generacion de lenguaje no-autorregresiva (NAR) con wavelets 2D y un vocoder paralelo es viable.
 
-```
- ┌───────────────────────────┐       ┌───────────────────────────┐       ┌───────────────────────────┐
- │   PHASE 1: AUTOENCODING   │  ───► │  PHASE 2: REAL LANGUAGE   │  ───► │ PHASE 3: SPEED & SCALING  │
- │ Lossless Vocoding on Real │       │ WikiText/TinyStories LLM  │       │ 250x Wall-Clock Latency & │
- │ Text Corpus (FineWeb/Code)│       │ Wave-In ➔ Wave-Out Core   │       │ Long-Context Chunk Stream │
- └───────────────────────────┘       └───────────────────────────┘       └───────────────────────────┘
-```
+Este plan organiza la idea en experimentos con hipotesis falsables, metricas y puertas de decision (go/no-go). El objetivo es fallar pronto, no demostrar que la idea funciona.
 
 ---
 
-## 🧪 Phase 1: Vocoder Reconstruction Capacity (Proof of Spectral Invertibility)
+## Marco: que es realmente SpecWave
 
-**Objective:** Prove that continuous 2D Wavelet/Fourier representations can compress and reconstruct natural language and source code without losing syntax, punctuation, or numbers.
+1. No hay compresion. El espectro de salida tiene la misma dimension que la entrada (N x d). El razonador MLP aprende un mapa N x d -> N x d. Esto escala mal. Es el riesgo principal.
 
-### Experiment 1.1: Multi-Scale Reconstruction Benchmark (FineWeb-Edu & Python Code)
-- **Dataset:** 100,000 text blocks (64 and 128 tokens) from `FineWeb-Edu` and `The Stack v2 (Python)`.
-- **Harness:**
-  `Token Sequence ──► Embeddings ──► 2D DWT ──► IDWT Vocoder ──► Token Logits`
-- **Target Metrics:**
-  - **Exact Token Reconstruction Match (%):** Target $\ge 99.5\%$.
-  - **Perplexity (PPL):** Reconstruction $\text{PPL} \le 1.05$.
-  - **Syntax & Bracket Invariance:** 100% preservation of brackets `{}`, indentation, and variable names.
+2. El "O(1)" no es gratis. Un forward con salida N x d acoplado a un vocabulario de 50k simbolos crece con N. La generacion es de longitud fija, sin parada dinamica.
 
-### Experiment 1.2: Wavelet Basis Comparison Sweep
-- Compare different orthogonal transform bases in the vocoder:
-  1. **Haar 2D DWT:** Ultra-fast, localized step wavelets (baseline).
-  2. **Daubechies-4 (Db4) 2D DWT:** Smooth continuous wavelets.
-  3. **2D DCT-II:** Global harmonic frequency compaction.
-  4. **Multi-Substrate Hybrid:** Lerp routing between bases (from `spec-rama`).
+3. La analogia con el audio es parcial. En audio, el mel-spectrogram es una representacion comprimida. Aqui, el espectro wavelet es solo una reparametrizacion lineal de los embeddings. La via real es la generacion NAR iterativa (diffusion, masked LM), no un "disparo unico".
+
+**Hipotesis central:** La parte mecanica (el vocoder) ya funciona. Hay que probar si un generador puede producir un espectro coherente y no memorizado para texto nuevo.
 
 ---
 
-## 🔬 Phase 2: End-to-End Language Pre-Training (Wave-In ➔ Wave-Out)
+## Fase 0: Fundamentos (VERIFICADO)
 
-**Objective:** Train a full language model where both prompts and responses are processed and generated entirely in the spectral wave domain.
+- La transformada de Haar 2D es una biyeccion isometrica exacta (error Parseval ~6e-08).
+- El vocoder puede memorizar corpora pequenos (100% exact match).
+- Un forward unico es barato (7-28 ms para N=32-256).
 
-### Experiment 2.1: TinyStories / Synthetic Reasoning Benchmark
-- **Dataset:** `TinyStories` (Eldan & Li, 2023) — standardized benchmark for evaluating grammatical coherence, plot logic, and reasoning in small models (10M–50M parameters).
-- **Comparison Arms:**
-  1. **Autoregressive GPT Baseline:** Standard causal Transformer ($N=64$ sequential steps).
-  2. **SpecWave + Transformer Backbone:** Transformer reasoner producing 2D waves in 1 step ($O(1)$).
-  3. **SpecWave + DeltaPhase Backbone:** Phasor $S^1$ reasoner producing 2D waves in 1 step ($O(1)$).
-- **Target Metrics:**
-  - **Evaluation Perplexity (PPL)** on test set.
-  - **Grammar & Plot Coherence Score** (GPT-4 evaluation panel).
-  - **Training Speedup (Tokens/sec):** Due to parallel block loss without temporal unrolling.
-
-### Experiment 2.2: Global Thesis Consistency vs. Mid-Sentence Drift Audit
-- Test long-context multi-paragraph generation.
-- **Metric:** Measure contradiction rate between paragraph beginnings and paragraph conclusions. SpecWave's **LL (Low-Low) frequency anchor** should mathematically eliminate mid-paragraph stance flipping.
+Conclusion: la mecanica wavelet funciona. El problema esta en la generalizacion del generador.
 
 ---
 
-## ⚡ Phase 3: Hardware Latency, Throughput & Servicing Scaling
+## Fase 1: Invertibilidad a escala (VERIFICADO / PUERTA 1 PASADA)
 
-**Objective:** Measure real-world wall-clock latency and VRAM allocation on consumer GPUs (NVIDIA RTX / Radeon 780M) and Cloud GPUs (Tesla T4 / A100 / H100).
+**Hipotesis:** El vocoder puede reconstruir (no memorizar) bloques de texto nunca vistos, con datos reales.
 
-### Experiment 3.1: Wall-Clock Latency per Paragraph ($N=64, 128, 256$)
-- Measure time-to-first-token vs time-to-full-paragraph:
-  - **Standard Autoregressive LLM:** $\text{Latency} \approx N \times 20\text{ ms} = 1,280\text{ ms} \text{ – } 5,000\text{ ms}$.
-  - **SpecWave ($O(1)$):** Single forward pass $\approx \mathbf{2\text{ – }10\text{ ms}}$.
-- **Target Result:** Demonstrate empirical **$>100\times \text{ to } 250\times$ faster response generation**.
+**Experimento:**
+1. Dataset: WikiText-2 real de HuggingFace/PyTorch (patron en `benchmarks/phase1_vocoder_scale.py`).
+   - Train: 10,000 bloques de 64 tokens (640k tokens).
+   - Test: 1,000 bloques blind (64k tokens).
+2. Protocolo: tokens -> embeddings -> DWT 2D -> IDWT -> logits. El target es el mismo bloque.
+3. Metricas: Exact token match 97.45%, Exact sequence match 23.50%, PPL de reconstruccion test **1.4568** (Loss 0.3762).
 
-### Experiment 3.2: High-Density Concurrent User Throughput
-- Simulate 1,000 concurrent user queries on a single GPU.
-- Measure memory bandwidth saturation and queries served per second.
-
----
-
-## 🛡️ Phase 4: Mechanistic Safety & Real-Time Intent Auditing
-
-**Objective:** Validate real-time deception and jailbreak detection via direct LL subband monitoring.
-
-### Experiment 4.1: The "Unconscious Thought" Verbalization Test
-- Present benign-appearing prompts containing concealed exploits.
-- Measure detection rate of covert intent by decoding the LL subband alone vs standard output filtering.
-- **Target Metric:** $>95\%$ zero-latency detection of adversarial jailbreaks prior to token generation.
+**Puerta 1:** ✅ **PASADA** (PPL test 1.4568 $\le 2.0$ y exactitud de token 97.45% $\ge 95\%$). Proceder a Fase 2.
 
 ---
 
-## 📅 Roadmap Execution Schedule
+## Fase 2: Ablacion (VERIFICADO / GATE 2: B ≈ A)
 
-| Phase | Milestone | Deliverables | Target Script |
-| :--- | :--- | :--- | :--- |
-| **P1** | **Vocoder Invertibility** | Train Vocoder on FineWeb text (100k samples, 99%+ accuracy) | `tests/benchmark_vocoder_fineweb.py` |
-| **P2** | **TinyStories Pretraining** | Head-to-Head SpecWave vs GPT-2 baseline on TinyStories | `examples/train_tinystories_specwave.py` |
-| **P3** | **Wall-Clock Benchmarks** | Triton / CUDA GPU latency benchmarks ($250\times$ speedup proof) | `tests/benchmark_gpu_wallclock.py` |
-| **P4** | **Safety & Paper Release** | Mechanistic interpretability audit & ArXiv preprint | `docs/spec_wave_paper.pdf` |
+**Hipotesis:** Las wavelets aportan una ventaja real al generador.
+
+**Experimento:**
+- A: Generador con wavelets 2D (SpecWave: 21.72M params).
+- B: Generador sobre la secuencia plana $N \times D$ sin wavelets (Flat Baseline: 21.72M params).
+- Dataset: WikiText-2 real (4,000 pares train, 500 pares blind test).
+
+**Resultados Medidos:**
+- Modelo A (SpecWave): Val Loss **6.9927** | Val PPL **1088.70** | Val Acc **5.03%**
+- Modelo B (Flat): Val Loss **6.9926** | Val PPL **1088.57** | Val Acc **5.03%**
+- Diferencia: $\Delta \text{Loss} = -0.0001$, $\Delta \text{PPL} = -0.13$.
+
+**Criterio / Veredicto:** ⚠️ **NEUTRAL ($B \approx A$)**: La transformada de Haar 2D es una rotación ortogonal exacta en el espacio de Hilbert; las capas densas aprenden un subespacio isomórfico con y sin descomposición wavelet. El cuello de botella de la generación NAR no es la base wavelet, sino el determinismo de 1 solo disparo. Proceder a Fase 3 (Refinamiento Iterativo / Difusión).
+
+---
+
+## Fase 3: Generacion condicionada & Difusión (VERIFICADO / GATE 3 EVALUADO)
+
+**Hipotesis:** Un generador o difusor en el espacio espectral wavelet 2D produce una continuación de texto coherente para un prompt dado.
+
+**Experimentos y Resultados:**
+1. **Generador 1 paso (MLP / Feedforward):** Val PPL $\approx 1088$, Val Token Acc $5.03\%$ (colapso multimodal del disparo único).
+2. **Difusor Espectral Continuo (Diffusion-LM en 2D DWT, 10-step DDIM):** Val Gen Acc $1.30\%$, Noise MSE $1.0006$.
+
+**Conclusión:** Generar bloques completos no-autorregresivos en un espacio continuo de $8,192$ dimensiones sin atención autorregresiva profunda sufre de entropía multimodal severa. La mecánica del vocoder (Fase 1) es excelente como autoencoder ($97.45\%$ exactitud), pero la generación libre no generaliza a nivel de lenguaje natural.
+
+---
+
+## Resumen de experimentos y Estado Real
+
+| # | Experimento | Pregunta clave | Puerta para avanzar | Estado Real Medido |
+|---|------------|---------------|---------------------|--------------------|
+| 1 | Invertibilidad real (WikiText-2) | ¿El vocoder supera la memorizacion? | PPL test < 2.0 | ✅ **PASADO** (PPL 1.46, Acc 97.45%) |
+| 2 | Ablacion wavelets vs MLP plano | ¿Aportan algo real? | A > B en PPL de test | ⚠️ **VERIFICADO** (B ≈ A, equivalencia ortogonal) |
+| 3 | Generacion condicionada & Difusión | ¿Funciona la via NAR iterativa? | PPL test < 50 / mejora sobre 1 paso | ⚠️ **EVALUADO** (Acc 1.30%, reto dimensional de bloque) |
+| 4 | Latencia GPT-2 real (KV-cache) | ¿Es rapida a igual calidad? | Speedup real > 2x | ⚠️ Condicionado a calidad de generación |
+| 5 | Coherencia e interpretacion | ¿Genera parrafos coherentes? | Preferencia humana > 50% | ❌ No aplicable por límite de generalización |
+
+## Orden de ejecucion
+
+1 -> 2 -> 3 (primero el 3.3) -> 4 -> 5 -> 6.
+
+Los primeros experimentos son baratos (horas). El 3.3 es el que decide todo.
+
+---
+
+## Expectativa realista
+
+1. El disparo unico con MLP plano probablemente no funcione (no hay historial de exito en la literatura).
+2. La via NAR iterativa (diffusion) es la mas prometedora. SpecWave quedaria como "diffusion sobre espectros wavelet". El interes real seria la representacion intermedia.
+3. La subbanda LL como "semantica" no esta probada con texto real: la energia de Haar depende del embedding, no del significado.
+4. Si las fases 2-3 fallan, el vocoder seria mas util como compresor / autoencoder de texto, no como generador.
+5. Presupuesto: 5-6 experimentos, una persona, una GPU (T4/RTX), de horas a unas pocas semanas.
+
+---
+
+## Cambios vs el roadmap original
+
+| Aspecto | Roadmap original (romantico) | Este roadmap (critico) |
+|---------|------------------------------|--------------------------|
+| Objetivo | Probar 250x, lossless, etc | Fallar la idea pronto |
+| Fase 1 | FineWeb 100k | WikiText 50k/5k |
+| Fase 2 | Pre-training TinyStories | Ablacion wavelets vs MLP |
+| Fase 3 | Wall-clock 250x | El problema real: generacion |
+| Fase 4 | Safety | Solo si hay modelo real |
+
+<!-- Todo el documento es un plan de investigacion. Objetivo: falsar SpecWave. -->

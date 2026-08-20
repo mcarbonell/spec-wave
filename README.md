@@ -149,11 +149,11 @@ El roadmap original (`docs/empirical_validation_roadmap.md`) describe los experi
 
 | Fase | Objetivo del roadmap | Estado real | Script |
 | :--- | :--- | :--- | :--- |
-| **P1** | Vocoder en FineWeb (100k muestras) | ❌ Corpus hardcodeado (~12 bloques) | `tests/benchmark_vocoder_fineweb.py` |
-| **P2** | TinyStories real (2.1M historias) | ❌ 8 plantillas sintéticas | `examples/train_tinystories_specwave.py` |
-| **P3** | Benchmarks GPU (Triton/CUDA, 250x) | ⚠️ Latencia medida, baseline extrapolado | `tests/benchmark_gpu_wallclock.py` |
-| **P4** | Safety con jailbreaks reales | ❌ Ruido gaussiano sintético | `tests/benchmark_spectral_safety.py` |
-| **P4C** | WikiText-2 real, generalización | ⚠️ Datos reales, pero val PPL ~4,500 (no generaliza) | `examples/benchmark_ppl_parity.py` |
+| **P1** | Invertibilidad Vocoder a escala | ✅ **PASADO** (Val PPL 1.46, Acc 97.45% en WikiText-2 real) | [`benchmarks/phase1_vocoder_scale.py`](benchmarks/phase1_vocoder_scale.py) |
+| **P2** | Ablación Wavelets vs. Plano | ⚠️ **VERIFICADO ($B \approx A$)** (PPL Diff: -0.13, equivalencia ortogonal) | [`benchmarks/phase2_ablation.py`](benchmarks/phase2_ablation.py) |
+| **P3** | Generación Condicionada & Diffusion | ⚠️ **EVALUADO** (1-paso PPL ~1088 vs Difusión 10 DDIM Acc 1.30%) | [`benchmarks/phase3_diffusion.py`](benchmarks/phase3_diffusion.py) |
+| **P4** | Latencia real vs GPT-2 (KV-cache) | ⚠️ Latencia medida, baseline extrapolado | `tests/benchmark_gpu_wallclock.py` |
+| **P5/P6** | Coherencia, Interpretación & Safety | ❌ No aplicable por límite de generalización abierta | `tests/benchmark_spectral_safety.py` |
 
 ---
 

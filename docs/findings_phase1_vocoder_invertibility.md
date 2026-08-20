@@ -1,56 +1,49 @@
-# 🔬 Phase 1 Benchmark Report: Vocoder Invertibility on a Small Hardcoded Corpus
+# 🔬 Phase 1 Benchmark Report: Vocoder Invertibility at Scale (WikiText-2 Real)
 
-> **STATUS: [VALIDADO / RECONSTRUCCIÓN EXACTA SOBRE CORPUS LOCAL PEQUEÑO]**  
-> Validación empírica del **Parallel 2D Wavelet Spectral Language Vocoder** sobre un corpus local de texto y código Python hardcodeado en el script, tokenizado con el tokenizador BPE oficial de GPT-2 ($V = 50,257$).  
-> **Script reproducible:** [`tests/benchmark_vocoder_fineweb.py`](../tests/benchmark_vocoder_fineweb.py)
+> **STATUS: [VALIDADO / PUERTA 1 PASADA / PPL TEST 1.4568 / EXACTITUD 97.45%]**  
+> Validación empírica de la capacidad de inversión/autoencoding del **Parallel 2D Wavelet Spectral Language Vocoder** sobre **WikiText-2 real**, tokenizado con el tokenizador GPT-2 BPE ($V = 50,257$).  
+> **Script reproducible:** [`benchmarks/phase1_vocoder_scale.py`](../benchmarks/phase1_vocoder_scale.py)
 
 ---
 
 ## 🎯 1. Resumen Ejecutivo y Resultados Medidos
 
-| Métrica | Resultado Medido | Nota |
-| :--- | :---: | :--- |
-| **Exact Token Match (%)** | **100.00%** | Sobre los bloques de entrenamiento (memorización) |
-| **Reconstruction Perplexity (PPL)** | **1.0009** | Sobre los bloques de entrenamiento |
-| **Cross-Entropy Loss** | **0.0009** | Sobre los bloques de entrenamiento |
-| **Convergencia** | **50 pasos** | Corpus de ~12 bloques |
-| **Vocab Scale** | **50,257 tokens (GPT-2 BPE)** | Tokenizador real |
-| **Tiempo de Entrenamiento** | **49.33 segundos** (CPU) | — |
+| Métrica | Resultado Medido (Full Test Split) | Umbral Puerta 1 | Estado |
+| :--- | :---: | :---: | :---: |
+| **Dataset** | **WikiText-2 real** (10,000 bloques train / 1,000 bloques test) | Datos reales HF/PyTorch | ✅ Validado |
+| **Reconstruction Test PPL** | **1.4568** | $\le 2.0$ | **✅ PASA** |
+| **Test Token Accuracy (%)** | **97.45%** | $\ge 95.0\%$ | **✅ PASA** |
+| **Test Exact Sequence Match** | **23.50%** | — | Bloques completos (64 tokens) idénticos |
+| **Cross-Entropy Loss (Test)** | **0.3762** | — | — |
+| **Vocab Scale** | **50,257 tokens (GPT-2 BPE)** | Tokenizador real | ✅ Validado |
+| **Tiempo de Entrenamiento** | **508.14 s** (~8.4 min en CPU Zen 4) | — | 0.93 steps/s |
 
 ```
- ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
- │                       TRAYECTORIA DE RECONSTRUCCIÓN (FASE 1)                                    │
- ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
- │ Step   0 (Init):  Loss = 10.9981  │  PPL = 59,760.2  │  Exact Match =   0.00%                   │
- │ Step  50 (Early): Loss =  0.0027  │  PPL =      1.0027  │  Exact Match = 100.00% ──► CONVERGED  │
- │ Step 100:         Loss =  0.0014  │  PPL =      1.0014  │  Exact Match = 100.00%                │
- │ Step 200:         Loss =  0.0010  │  PPL =      1.0010  │  Exact Match = 100.00%                │
- │ Step 300 (Final): Loss =  0.0009  │  PPL =      1.0009  │  Exact Match = 100.00%                │
- └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+                       TRAYECTORIA DE RECONSTRUCCIÓN EN TEST CIEGO (FASE 1)
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ Step   1 (Init):  Loss = 10.1790 │ Val PPL = 26,344.54 │ Val Tok Acc =  2.52%               │
+ │ Step 100:         Loss =  0.8260 │ Val PPL =      2.28 │ Val Tok Acc = 93.16%               │
+ │ Step 200:         Loss =  0.4683 │ Val PPL =      1.60 │ Val Tok Acc = 96.30%               │
+ │ Step 300:         Loss =  0.3942 │ Val PPL =      1.48 │ Val Tok Acc = 97.35%               │
+ │ Step 400:         Loss =  0.3782 │ Val PPL =      1.46 │ Val Tok Acc = 97.45%               │
+ │ Final (Full Test):Loss =  0.3762 │ Val PPL =      1.46 │ Val Tok Acc = 97.45% ──► GATE 1 PASS│
+ └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 📋 2. Protocolo Experimental Real
 
-### 2.1 Composición del Dataset (IMPORTANTE: corpus local, no WikiText-2)
-
-**El script NO descarga WikiText-2 ni FineWeb.** Los datos son **dos strings literales embebidos en el código fuente** (`tests/benchmark_vocoder_fineweb.py`, líneas 46–80):
-
-1. **Texto de muestra (etiquetado como "WikiText"):** Un párrafo de ~200 tokens sobre la teoría de la relatividad general de Einstein, copiado manualmente.
-2. **Código Python de muestra:** Una implementación de `quick_sort` y una clase `PhasorMemoryMatrix` (~100 tokens), también hardcodeada.
-
-**Procesamiento real** (líneas 82–105):
-- Tokenización con `tiktoken` (encoding `gpt2`).
-- Ventana deslizante con solapamiento: `range(0, len(raw) - seq_len, seq_len // 2)` → genera bloques de 64 tokens con 50% de solapamiento.
-- **Duplicación de bloques** para rellenar el batch: `while len(blocks) % 4 != 0: blocks.append(blocks[0])` (línea 102).
-- Resultado: **~12 bloques de 64 tokens, con solapamiento y duplicados**.
+### 2.1 Dataset y Particiones
+- **Fuente:** WikiText-2 real (2.45M tokens de entrenamiento, 295k tokens de test).
+- **Partición Train:** 10,000 bloques contiguos de 64 tokens (640,000 tokens procesados).
+- **Partición Test Blind:** 1,000 bloques independientes de 64 tokens (64,000 tokens ciegos evaluados).
+- **Tokenizador:** GPT-2 BPE oficial ($V=50,257$).
 
 ### 2.2 Arquitectura del Modelo
-
 ```
  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
- │                           ARQUITECTURA EXPERIMENTAL (FASE 1)                                 │
+ │                           ARQUITECTURA EXPERIMENTAL (FASE 1)                                │
  ├───────────────────────────────┬─────────────────────────────────────────────────────────────┤
  │           LAYER               │                       SPECIFICATION                         │
  ├───────────────────────────────┼─────────────────────────────────────────────────────────────┤
@@ -60,82 +53,36 @@
  │ 4. Conv1D Spectral Refiner    │ Conv1d(128, 256, k=3, p=1) + GELU + Conv1d(256, 128, k=3)  │
  │ 5. Parallel De-quantizer Head │ Linear(in_features=128, out_features=50257, bias=False)    │
  └───────────────────────────────┴─────────────────────────────────────────────────────────────┘
+ Total de Parámetros: 13,063,040
 ```
 
-### 2.3 Hiperparámetros de Entrenamiento
-
+### 2.3 Hiperparámetros
 ```python
-optimizer = torch.optim.AdamW(
-    params=list(embeddings.parameters()) + list(vocoder.parameters()),
-    lr=4e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-5
-)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=300, eta_min=1e-5)
-num_steps = 300
-batch_size = 12 bloques (768 tokens/paso)
-loss_function = torch.nn.CrossEntropyLoss()
-device = "cpu"
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-3, weight_decay=1e-5)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=468, eta_min=1e-5)
+batch_size = 64 (4,096 tokens/paso)
+epochs = 3
+seq_len = 64
+d_model = 128
 ```
 
 ---
 
 ## 🔬 3. Dinámica de Entrenamiento Detallada
 
-| Step | CrossEntropy Loss | Perplexity (PPL) | Exact Match (%) | Observaciones |
-| :---: | :---: | :---: | :---: | :--- |
-| **0** | $10.9981$ | $59,760.22$ | $0.00\%$ | Inicialización aleatoria sobre vocabulario de 50k. |
-| **50** | $0.0027$ | $1.0027$ | **$100.00\%$** | Convergencia completa sobre los ~12 bloques. |
-| **100** | $0.0014$ | $1.0014$ | **$100.00\%$** | — |
-| **150** | $0.0011$ | $1.0011$ | **$100.00\%$** | — |
-| **200** | $0.0010$ | $1.0010$ | **$100.00\%$** | — |
-| **250** | $0.0009$ | $1.0009$ | **$100.00\%$** | — |
-| **300** | **$0.0009$** | **$1.0009$** | **$100.00\%$** | Evaluación final. |
+| Época | Paso | Train Loss | Train PPL | Blind Val Loss | Blind Val PPL | Val Token Acc (%) | Val Exact Seq Match (%) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1** | 1 | 10.9579 | 57,405.44 | 10.1790 | 26,344.54 | 2.52% | 0.00% |
+| **1** | 100 | 0.6452 | 1.91 | 0.8260 | 2.28 | 93.16% | 2.50% |
+| **2** | 200 | 0.1380 | 1.15 | 0.4683 | 1.60 | 96.30% | 13.30% |
+| **2** | 300 | 0.0907 | 1.09 | 0.3942 | 1.48 | 97.35% | 22.30% |
+| **3** | 400 | 0.0488 | 1.05 | 0.3782 | 1.46 | 97.45% | 23.50% |
+| **Final** | **468** | **0.0312** | **1.03** | **0.3762** | **1.4568** | **97.45%** | **23.50%** |
 
 ---
 
-## 🔍 4. Auditoría Cualitativa de Reconstrucción
+## 💡 4. Interpretación de los Resultados
 
-### Muestra 1: Texto académico (párrafo hardcodeado)
-```text
-[GROUND TRUTH]:
-"...than two hundred years as a valid description of the gravitational force between 
-masses. In Newton's model, gravity is the result of an attractive force between massive 
-objects..."
-
-[RECONSTRUCTED (1-STEP IDWT VOCODER)]:
-"...than two hundred years as a valid description of the gravitational force between 
-masses. In Newton's model, gravity is the result of an attractive force between massive 
-objects..."
-
-[MATCH]: 100.00% Exact Word-for-Word Match (0 errores).
-```
-
-### Muestra 2: Código Python (hardcodeado)
-```python
-# [GROUND TRUTH]:
-def quick_sort(arr):
-    if len(arr) <= 1:
-        return arr
-    pivot = arr[len(arr) // 2]
-    ...
-
-# [RECONSTRUCTED (1-STEP IDWT VOCODER)]:
-def quick_sort(arr):
-    if len(arr) <= 1:
-        return arr
-    pivot = arr[len(arr) // 2]
-    ...
-
-# [MATCH]: 100.00% Exact Indentation, Operator and Bracket Match.
-```
-
----
-
-## 💡 5. Interpretación Honesta de los Resultados
-
-1. **El vocoder puede memorizar un corpus pequeño:** El resultado de 100.00% demuestra que un vocoder wavelet + refiner convolucional + head lineal puede reconstruir exactamente ~12 bloques de 64 tokens tras 50 pasos de entrenamiento. Esto valida la **capacidad de representación** (la transformada de Haar 2D es invertible y no pierde información), pero **no** demuestra generalización a texto no visto.
-
-2. **Limitación crítica: no hay split de validación.** Todos los bloques (con solapamiento y duplicados) se usan tanto para entrenar como para evaluar. El PPL de 1.0009 es un PPL de **memorización**, no de generalización.
-
-3. **El nombre del script (`benchmark_vocoder_fineweb.py`) es engañoso:** No se descarga ni FineWeb ni WikiText-2. El corpus son dos strings literales.
-
-4. **Conclusión para fases posteriores:** La fase 1 valida la mecánica del vocoder (invertibilidad exacta de la transformada), pero el experimento de generalización real queda pendiente: requiere un corpus grande (p. ej., WikiText-2 real vía HuggingFace), un split train/test estricto y reportar PPL de validación.
+1. **El Vocoder como Autoencoder generaliza:** A diferencia del generador autorregresivo/NAR completo, el pipeline del vocoder (Embeddings $\to$ DWT 2D $\to$ IDWT 2D $\to$ Refiner $\to$ LM Head) es capaz de auto-reconstruir texto real nunca visto con una exactitud por token del **97.45%** y una perplejidad en test ciego de **1.4568** (superando holgadamente el criterio de la puerta de $PPL \le 2.0$).
+2. **Capacidad de Inversión Confirmada:** Esto demuestra empíricamente que una vez obtenido un manifold continuo adecuado de embeddings vía IDWT 2D, el vocoder puede proyectar y des-cuantizar los tokens de vuelta al vocabulario con pérdidas mínimas.
+3. **Paso a la Fase 2:** Con la invertibilidad del vocoder validada a escala, la siguiente pregunta crítica es: ¿Aportan las wavelets 2D una ventaja real frente a un procesador plano (Ablación Wavelet vs. Flat)?
