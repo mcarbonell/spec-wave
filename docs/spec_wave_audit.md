@@ -1,6 +1,7 @@
 # 🔍 SpecWave: Auditoría Profunda del Proyecto — Idea, Código y Experimentos
 
 > **STATUS: [AUDITORÍA INDEPENDIENTE / 2026-08-21 / ALCANCE: REPO COMPLETO]**
+> ⚠️ **Nota:** existe una síntesis conjunta de esta auditoría con la de GPT 5.6 Earth en [`docs/auditoria_conjunta_2026-08-21.md`](auditoria_conjunta_2026-08-21.md) — usar ese documento como referencia accionable principal.
 > Análisis integral del repositorio: hipótesis central, fundamentos matemáticos, calidad del código, validez experimental, viabilidad de la línea de investigación y vías de rescate con beneficio potencial.
 > **Método:** revisión de todo el código (`spec_wave/`, `benchmarks/`, `examples/`, `tests/`), los 14 documentos de hallazgos, el historial git completo y los experimentos en curso (`native_specwave_decay_200m`, checkpoints hasta step 42k).
 
