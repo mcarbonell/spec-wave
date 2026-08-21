@@ -55,9 +55,9 @@ def test_1_wavelet_lossless():
     assert max_recon_error < 1e-6, "IDWT must be exact lossless bijection!"
     print("✅ Result: 2D Wavelet representation is an exact isometric bijection (PASSED).\n")
 
-def test_2_speedup():
+def test_2_smoke_latency():
     print("=" * 80)
-    print("⚡ TEST 2: Single-Shot O(1) Generation Latency (N=64)")
+    print("⚡ TEST 2: Smoke Latency Benchmark (Constant Depth Forward Pass, N=64)")
     print("=" * 80)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = SpecWaveLanguageModel(vocab_size=256, seq_len=64, d_model=64).to(device)
@@ -72,8 +72,8 @@ def test_2_speedup():
         _, _ = model.single_shot_generate(thought_context)
     specwave_latency_ms = ((time.perf_counter() - t0) / iters) * 1000.0
     
-    print(f"Single-Shot SpecWave O(1) Latency: {specwave_latency_ms:.3f} ms")
-    print("✅ Result: Single-shot spectral waveform decoding achieves sub-millisecond generation.\n")
+    print(f"Measured Forward Pass Latency: {specwave_latency_ms:.3f} ms (N=64, d=64 on {device})")
+    print("✅ Result: Smoke latency benchmark executed successfully.\n")
 
 def test_3_e2e_pipeline():
     print("=" * 80)
@@ -109,7 +109,7 @@ def run_all():
     t0 = time.time()
     print("🚀 Running SpecWave Framework Official Test Suite...\n")
     test_1_wavelet_lossless()
-    test_2_speedup()
+    test_2_smoke_latency()
     test_3_e2e_pipeline()
     elapsed = time.time() - t0
     print("=" * 80)
