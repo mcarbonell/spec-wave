@@ -200,14 +200,26 @@ def run_decay_training(
                     best_val_loss = val_metrics['loss']
                     torch.save({
                         'step': global_step,
+                        'tokens_seen': tokens_seen,
                         'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
                         'val_loss': best_val_loss,
                         'val_ppl': val_metrics['ppl'],
                         'val_acc_all': val_metrics['acc_all'],
                         'val_acc_p1': val_metrics['acc_p1'],
                         'val_acc_p1_4': val_metrics['acc_p1_4']
                     }, checkpoint_path)
-                    is_best = " ⭐"
+                    is_best = " ⭐ (BEST)"
+                elif global_step % (eval_interval * 4) == 0:
+                    periodic_ckpt = checkpoint_path.replace(".pt", f"_step{global_step}.pt")
+                    torch.save({
+                        'step': global_step,
+                        'tokens_seen': tokens_seen,
+                        'model_state_dict': model.state_dict(),
+                        'val_loss': val_metrics['loss'],
+                        'val_ppl': val_metrics['ppl']
+                    }, periodic_ckpt)
+                    is_best = f" 💾 (Saved {periodic_ckpt})"
                     
                 print(
                     f"{epoch:<5d} | {global_step:<6d} | {tokens_seen:<10,d} | {weighted_ce.item():<9.4f} | "
